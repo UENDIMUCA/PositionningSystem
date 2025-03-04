@@ -1,85 +1,94 @@
-import sys
-import math
 import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.patches import Circle
+from scipy.optimize import least_squares
 
 # -----------------------------
-# A Simple Location Class
+# N-Lateration Class (Computes Position)
 # -----------------------------
-class Location:
-    def __init__(self, x=0.0, y=0.0, z=0.0):
+class NLateration:
+    def __init__(self, points, distances):
+        """
+        Initializes the N-Lateration class with known points (emitters) and their distances to the receiver.
+        :param points: List of (x, y, z) coordinates of the emitters.
+        :param distances: List of distances from the receiver to each emitter.
+        """
+        self.points = np.array(points)
+        self.distances = np.array(distances)
+
+    def estimate_location(self):
+        """
+        Uses the least squares method to estimate the position of the receiver.
+        :return: The estimated (x, y, z) position.
+        """
+        # Initial guess for the receiver's position
+        x0 = np.array([0, 0, 0])
+
+        # Define the optimization function
+        def fun(x):
+            return np.linalg.norm(self.points - x, axis=1) - self.distances
+
+        # Apply least squares optimization
+        res = least_squares(fun, x0)
+
+        # Return the estimated position
+        return res.x
+
+# -----------------------------
+# Emitter Class (Represents Emitters in 3D Space)
+# -----------------------------
+class Emitter:
+    def __init__(self, center):
+        """
+        Represents an emitter in 3D space.
+        :param center: Tuple (x, y, z) representing the emitter's coordinates.
+        """
+        self.center = center
+
+# -----------------------------
+# Position Class (Represents Estimated Position)
+# -----------------------------
+class Position:
+    def __init__(self, x, y, z):
+        """
+        Represents a position in 3D space.
+        :param x: X coordinate.
+        :param y: Y coordinate.
+        :param z: Z coordinate.
+        """
         self.x = x
         self.y = y
         self.z = z
 
-    def distanceTo(self, other):
-        return math.sqrt((self.x - other.x)**2 + (self.y - other.y)**2 + (self.z - other.z)**2)
+# -----------------------------
+# Receiver Class (Estimates Position)
+# -----------------------------
+class Receiver:
+    def __init__(self, distances):
+        """
+        Represents the receiver and computes its estimated position based on given distances.
+        :param distances: List of distances to emitters.
+        """
+        self.distances = distances
 
-    def toString(self):
-        return f"({self.x}, {self.y}, {self.z})"
+    def estimate_position(self):
+        """
+        Calls the N-Lateration algorithm to compute the estimated position.
+        :return: An instance of the Position class with estimated (x, y, z) coordinates.
+        """
+        n_lateration = NLateration(points, self.distances)
+        estimated_pos = n_lateration.estimate_location()
+        return Position(*estimated_pos)
 
 # -----------------------------
-# Data set: List of tuples (Location, distance)
+# Given Problem Data
 # -----------------------------
-dataset = [
-    (Location(0.5, 0.5, 0.5), 3.0),
-    (Location(4.0, 0.0, 0.0), 2.0),
-    (Location(4.0, 5.0, 5.0), 4.2),
-    (Location(3.0, 3.0, 3.0), 2.5)
-]
+points = [(0.5, 0.5, 0.5), (4, 0, 0), (4, 5, 5), (3, 3, 3)]
+distances = [3, 2, 4.2, 2.5]
 
-# -----------------------------
-# NLateration Function
-# -----------------------------
-def NLateration(data, step=0.1, xSize=0.0, ySize=0.0, zSize=0.0, md=0.0, dmax=10):
-    minLoc = Location()
-    minDist = float('inf')
-    revStep = int(1 / step)
-    xSize, ySize, zSize = max(k[0].x for k in data), max(k[0].y for k in data), max(k[0].z for k in data)
+# Create receiver object
+receiver = Receiver(distances)
 
-    for k in np.arange(0, xSize, step):
-        for l in np.arange(0, ySize, step):
-            for m in np.arange(0, zSize, step):
-                d = 0.0
-                currentLoc = Location(k, l, m)
-                for n in data:
-                    d += abs(n[0].distanceTo(currentLoc) - n[1])
-                if d < minDist:
-                    minDist = d
-                    minLoc = currentLoc
+# Compute estimated position
+position = receiver.estimate_position()
 
-    return minLoc, minDist
-
-# -----------------------------
-# Visualization Function
-# -----------------------------
-def visualize(data, computed_location):
-    fig, ax = plt.subplots()
-    # Draw circles for each data point
-    for location, distance in data:
-        circle = Circle((location.x, location.y), distance, fill=False, color='blue', linestyle='dotted')
-        ax.add_patch(circle)
-        ax.plot(location.x, location.y, 'bo')  # Mark the emitter location
-
-    # Mark the computed location
-    ax.plot(computed_location.x, computed_location.y, 'rx')  # 'rx' for red 'x'
-
-    # Setting the limits on the plot
-    ax.set_xlim(min(loc.x - dist for loc, dist in data), max(loc.x + dist for loc, dist in data))
-    ax.set_ylim(min(loc.y - dist for loc, dist in data), max(loc.y + dist for loc, dist in data))
-    ax.set_aspect('equal', adjustable='datalim')
-    plt.grid(True)
-    plt.show()
-
-# -----------------------------
-# Main Function
-# -----------------------------
-def main():
-    computed_location, total_error = NLateration(dataset, step=0.5)
-    print("Computed location: " + computed_location.toString())
-    print("Total distance error: {:.2f} m".format(total_error))
-    visualize(dataset, computed_location)
-
-if __name__ == '__main__':
-    main()
+# Print estimated position
+print(f"Estimated Position: ({position.x:.6f}, {position.y:.6f}, {position.z:.6f})")
