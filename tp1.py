@@ -1,5 +1,7 @@
 import numpy as np
 from scipy.optimize import least_squares
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D  # Needed for 3D plotting
 
 # -----------------------------
 # Position Class (3D Coordinates)
@@ -133,6 +135,57 @@ def get_user_input():
     return {"emitters": emitters, "distances": distances}
 
 # -----------------------------
+# Visualization Functions
+# -----------------------------
+def visualize(points, distances, estimated_position):
+    """Displays both 2D and 3D visualizations."""
+    # ----- 2D Visualization (XY Plane) -----
+    fig2d, ax2d = plt.subplots()
+    ax2d.set_title("2D Visualization (XY Plane)")
+    ax2d.set_xlabel("X")
+    ax2d.set_ylabel("Y")
+    
+    # Plot each AP and its range as a circle (only label the first for legend clarity)
+    for idx, ((x, y, z), d) in enumerate(zip(points, distances)):
+        circle = plt.Circle((x, y), d, fill=False, linestyle='--', edgecolor='b',
+                            label="AP Range" if idx == 0 else None)
+        ax2d.add_patch(circle)
+        ax2d.plot(x, y, 'bo', label="AP" if idx == 0 else None)
+    
+    # Plot the estimated position
+    ax2d.plot(estimated_position.x, estimated_position.y, 'r*', markersize=15, label="Estimated Position")
+    ax2d.legend()
+    ax2d.set_aspect('equal', 'box')
+    ax2d.grid(True)
+
+    # ----- 3D Visualization -----
+    fig3d = plt.figure()
+    ax3d = fig3d.add_subplot(111, projection='3d')
+    ax3d.set_title("3D Visualization")
+    ax3d.set_xlabel("X")
+    ax3d.set_ylabel("Y")
+    ax3d.set_zlabel("Z")
+    
+    # Plot each AP and its sphere (wireframe) representing the distance
+    for idx, ((x, y, z), d) in enumerate(zip(points, distances)):
+        ax3d.scatter(x, y, z, c='b', marker='o', label="AP" if idx == 0 else None)
+        
+        # Create data for a sphere around the AP
+        u, v = np.mgrid[0:2*np.pi:20j, 0:np.pi:10j]
+        xs = x + d * np.cos(u) * np.sin(v)
+        ys = y + d * np.sin(u) * np.sin(v)
+        zs = z + d * np.cos(v)
+        ax3d.plot_wireframe(xs, ys, zs, color='b', alpha=0.2)
+    
+    # Plot the estimated position in 3D
+    ax3d.scatter(estimated_position.x, estimated_position.y, estimated_position.z,
+                 c='r', marker='*', s=100, label="Estimated Position")
+    ax3d.legend()
+    
+    # Show both plots
+    plt.show()
+
+# -----------------------------
 # Main Execution
 # -----------------------------
 if __name__ == "__main__":
@@ -142,7 +195,7 @@ if __name__ == "__main__":
     # Create emitters using the Factory
     emitters = [PositioningFactory.create_emitter(*coords) for coords in dataset["emitters"]]
 
-    # Extract positions of emitters
+    # Extract positions of emitters as tuples (x, y, z)
     points = [(emitter.position.x, emitter.position.y, emitter.position.z) for emitter in emitters]
 
     # Create receiver using the Factory
@@ -152,4 +205,7 @@ if __name__ == "__main__":
     estimated_position = receiver.estimate_position()
 
     # Print estimated position
-    print(f"\n Estimated Position: ({estimated_position.x:.6f}, {estimated_position.y:.6f}, {estimated_position.z:.6f})")
+    print(f"\nEstimated Position: ({estimated_position.x:.6f}, {estimated_position.y:.6f}, {estimated_position.z:.6f})")
+
+    # Visualize the results (both 2D and 3D)
+    visualize(points, dataset["distances"], estimated_position)
