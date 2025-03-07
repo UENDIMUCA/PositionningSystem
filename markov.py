@@ -1,6 +1,9 @@
 import random
 import pickle
+import networkx as nx
+import matplotlib.pyplot as plt
 from tabulate import tabulate
+
 
 class Node:
     """ Represents a page (node) in the graph """
@@ -66,11 +69,69 @@ class Graph:
             print("No saved data found. Starting a new graph.")
             return None
 
+    def draw_graph(self):
+        """ Draws the Markov Model transition graph with loops in green and bidirectional edges in red/blue """
+
+        G = nx.DiGraph()  # Directed Graph
+        edge_labels = {}  # Stores transition percentages
+        colors = {}  # Stores different colors for bidirectional edges
+
+        for i in range(5):
+            for j in range(5):
+                moves, percentage = self.node_stats(i, j)
+                if moves > 0:
+                    G.add_edge(i, j, weight=percentage)
+                    edge_labels[(i, j)] = f"{percentage:.1f}%"
+                    # Assign different colors
+                    if i == j:  # Loop edge (self-referencing)
+                        colors[(i, j)] = "green"
+                    elif (j, i) in edge_labels:  # Bidirectional edge
+                        colors[(i, j)] = "blue"
+                        colors[(j, i)] = "red"
+                    else:
+                        colors[(i, j)] = "black"  # Default color for single-direction edges
+
+        pos = nx.spring_layout(G, seed=42)  # Positioning nodes
+
+        plt.figure(figsize=(8, 6))
+
+        # Draw the nodes
+        nx.draw(G, pos, with_labels=True, node_color="skyblue",
+                node_size=3000, font_size=12, font_weight="bold")
+
+        # Draw edges with specific colors
+        for (i, j), color in colors.items():
+            if i == j:  # Self-loop (green)
+                nx.draw_networkx_edges(G, pos, edgelist=[(i, j)], edge_color="green",
+                                       arrowstyle='-|>', connectionstyle="arc3,rad=0.3", width=2)
+                nx.draw_networkx_edge_labels(G, pos, edge_labels={(i, j): edge_labels[(i, j)]},
+                                             font_size=10, font_color="green", label_pos=0.5)
+            elif (j, i) in colors:
+                # Draw bidirectional curved edges
+                nx.draw_networkx_edges(G, pos, edgelist=[(i, j)], edge_color=color,
+                                       arrowstyle='-|>', connectionstyle="arc3,rad=0.2", width=2)
+                nx.draw_networkx_edges(G, pos, edgelist=[(j, i)], edge_color=colors[(j, i)],
+                                       arrowstyle='-|>', connectionstyle="arc3,rad=-0.2", width=2)
+                # Label each arrow
+                nx.draw_networkx_edge_labels(G, pos, edge_labels={(i, j): edge_labels[(i, j)]},
+                                             font_size=10, font_color=color, label_pos=0.3)
+                nx.draw_networkx_edge_labels(G, pos, edge_labels={(j, i): edge_labels[(j, i)]},
+                                             font_size=10, font_color=colors[(j, i)], label_pos=0.7)
+            else:
+                # Normal single-direction edges
+                nx.draw_networkx_edges(G, pos, edgelist=[(i, j)], edge_color=color,
+                                       arrowstyle='-|>', connectionstyle="arc3,rad=0", width=2)
+                nx.draw_networkx_edge_labels(G, pos, edge_labels={(i, j): edge_labels[(i, j)]},
+                                             font_size=10, font_color=color, label_pos=0.5)
+
+        plt.title("Markov Model - Web Navigation Transition Graph")
+        plt.show()
+
     def __str__(self):
         """ Returns a formatted table of transition counts with move counts and percentages """
         headers = ["Node\\Remote"] + [f"Page {i}" for i in range(5)]
         table = []
-        
+
         for i in range(5):
             row = [f"Page {i}"]
             for j in range(5):
@@ -82,10 +143,7 @@ class Graph:
 
         return f"{formatted_table}\nCurrent node: {self._current_node_id}, Predicted next node: {self.predict_next_move()}"
 
-
-# ------------------------------------------
-# TESTING OPTIONS: INTERACTIVE / RANDOM
-# ------------------------------------------
+# INTERACTIVE / RANDOM
 def interactive_mode(graph):
     """ Allows user to enter moves dynamically """
     print("Interactive Mode: Enter node numbers (0-4) to move. Enter -1 to exit.\n")
@@ -96,6 +154,7 @@ def interactive_mode(graph):
                 break  # Exit
             if graph.move(next_move):
                 print(graph)  # Show updated transition matrix
+                graph.draw_graph()  # Draw graph after each move
             else:
                 print("Invalid move! Please enter a number between 0 and 4.")
         except ValueError:
@@ -107,7 +166,9 @@ def random_mode(graph, moves=10):
     for _ in range(moves):
         next_move = random.randint(0, 4)  # Ensures move is always 0-4
         graph.move(next_move)
+
     print(graph)  # Show transition table
+    graph.draw_graph()  # Draw graph after random moves
 
 
 if __name__ == "__main__":
