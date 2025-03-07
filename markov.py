@@ -39,12 +39,14 @@ class Graph:
         """ Calculates percentage of transitions from origin to destination """
         total_moves = self._nodes[origin_id].get_nb_moves()
         if total_moves == 0:
-            return 0  # Avoid division by zero
-        return (self._edges[origin_id][destination_id] * 100) / total_moves
+            return (0, 0.0)  # Avoid division by zero, return (moves, 0%)
+        moves = self._edges[origin_id][destination_id]
+        percentage = (moves * 100) / total_moves
+        return (moves, percentage)
 
     def predict_next_move(self):
         """ Predicts the most probable next move based on past transitions """
-        stats = [self.node_stats(self._current_node_id, j) for j in range(5)]
+        stats = [self.node_stats(self._current_node_id, j)[1] for j in range(5)]
         if all(s == 0 for s in stats):  # No transitions recorded
             return None  # No valid prediction
         return stats.index(max(stats))
@@ -65,16 +67,24 @@ class Graph:
             return None
 
     def __str__(self):
-        """ Returns a formatted table of transition counts """
-        headers = [f"Page {i}" for i in range(5)]
-        table = [[self._edges[i][j] for j in range(5)] for i in range(5)]
-        formatted_table = tabulate(table, headers=headers, showindex="always", tablefmt="grid")
+        """ Returns a formatted table of transition counts with move counts and percentages """
+        headers = ["Node\\Remote"] + [f"Page {i}" for i in range(5)]
+        table = []
+        
+        for i in range(5):
+            row = [f"Page {i}"]
+            for j in range(5):
+                moves, percentage = self.node_stats(i, j)
+                row.append(f"{moves} m, {percentage:.2f}%")
+            table.append(row)
+
+        formatted_table = tabulate(table, headers=headers, tablefmt="grid")
 
         return f"{formatted_table}\nCurrent node: {self._current_node_id}, Predicted next node: {self.predict_next_move()}"
 
 
 # ------------------------------------------
-# 🚀 TESTING OPTIONS: INTERACTIVE / RANDOM
+# TESTING OPTIONS: INTERACTIVE / RANDOM
 # ------------------------------------------
 def interactive_mode(graph):
     """ Allows user to enter moves dynamically """
