@@ -143,20 +143,32 @@ class Graph:
 
         return f"{formatted_table}\nCurrent node: {self._current_node_id}, Predicted next node: {self.predict_next_move()}"
 
+
 # INTERACTIVE / RANDOM
 def interactive_mode(graph):
-    """ Allows user to enter moves dynamically """
-    print("Interactive Mode: Enter node numbers (0-4) to move. Enter -1 to exit.\n")
+    """ Allows user to enter moves dynamically. 
+        Enter numbers 0-4 to make a move.
+        Enter 5 to generate the graph visualization.
+        Enter -1 to exit.
+    """
+    print("Interactive Mode: Enter node numbers (0-4) to move.")
+    print("Enter 5 to generate the graph visualization.")
+    print("Enter -1 to exit.\n")
     while True:
         try:
             next_move = int(input("Enter next move: "))
             if next_move == -1:
                 break  # Exit
-            if graph.move(next_move):
-                print(graph)  # Show updated transition matrix
-                graph.draw_graph()  # Draw graph after each move
+            elif next_move == 5:
+                # Generate the graph visualization without making a move
+                graph.draw_graph()
+            elif 0 <= next_move <= 4:
+                if graph.move(next_move):
+                    print(graph)  # Show updated transition matrix
+                else:
+                    print("Move failed. Try again.")
             else:
-                print("Invalid move! Please enter a number between 0 and 4.")
+                print("Invalid move! Please enter a number between 0 and 5 (-1 to exit).")
         except ValueError:
             print("Invalid input! Please enter a valid integer.")
 
