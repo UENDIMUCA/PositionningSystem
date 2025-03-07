@@ -126,7 +126,7 @@ def get_user_input():
             print("Invalid input. Please enter numbers separated by spaces.")
 
     if len(emitters) < 4:
-        print("\n⚠️ Not enough emitters provided! Using the default dataset instead.\n")
+        print("\n Not enough emitters provided! Using the default dataset instead.\n")
         return {
             "emitters": [(0.5, 0.5, 0.5), (4, 0, 0), (4, 5, 5), (3, 3, 3)],
             "distances": [3, 2, 4.2, 2.5]
