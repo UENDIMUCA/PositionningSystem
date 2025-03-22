@@ -115,7 +115,7 @@ class Graph:
 
     def __str__(self):
         """ Returns a formatted table of transition counts with move counts and percentages, plus total visits """
-        headers = ["Node\\Remote"] + [f"Page {i}" for i in range(5)] + ["Total Visits"]
+        headers = ["From\\To"] + [f"Page {i}" for i in range(5)] + ["Total Visits"]
         table = []
 
         for i in range(5):

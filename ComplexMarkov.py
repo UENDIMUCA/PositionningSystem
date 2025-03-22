@@ -112,7 +112,7 @@ class Graph:
         plt.show()
 
     def __str__(self):
-        headers = ["Room\\Remote"] + [f"Room {i}" for i in range(self._nb_nodes)] + ["Total Visits"]
+        headers = ["From\\To"] + [f"Room {i}" for i in range(self._nb_nodes)] + ["Total Visits"]
         table = []
 
         for i in range(self._nb_nodes):
