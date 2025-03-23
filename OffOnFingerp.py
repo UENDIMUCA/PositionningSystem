@@ -1,4 +1,8 @@
-﻿class Cellule:
+﻿import matplotlib.pyplot as plt
+import numpy as np
+from scipy.interpolate import griddata
+
+class Cellule:
     """ Represents a fingerprint reference point with RSSI values """
     def __init__(self, position, rssi):
         self.position = position  # (x, y) coordinates
@@ -24,15 +28,17 @@ class FingerprintLocalization:
     
     def find_k_nearest(self, tm_rssi):
         """ Identifies the k-nearest neighbors based on RSSI similarity """
-        distances = [(RSSIComparator.rssi_difference(cell.rssi, tm_rssi), cell.position) for cell in self.grid]
-        distances.sort()
+        distances = [(RSSIComparator.rssi_difference(cell.rssi, tm_rssi), cell.position) 
+                     for cell in self.grid]
+        distances.sort(key=lambda x: x[0])  # sort by distance
         return distances[:self.k]
     
     def compute_weights(self, k_nearest):
         """ Calculates weight for each neighbor """
-        d1 = k_nearest[0][0]  # Smallest difference
+        # Avoid division by zero; if distance=0, assign weight=1
         weights = [(1 / d) if d != 0 else 1 for d, _ in k_nearest]
-        weights = [w / sum(weights) for w in weights]  # Normalize
+        # Normalize weights so they sum to 1
+        weights = [w / sum(weights) for w in weights]
         return weights
     
     def estimate_position(self, k_nearest, weights):
@@ -43,7 +49,7 @@ class FingerprintLocalization:
 
 
 class LocalizationSystem:
-    """ Handles execution """
+    """ Handles execution and visualization """
     def __init__(self):
         self.grid = self.initialize_grid()
         self.localizer = FingerprintLocalization(self.grid)
@@ -62,12 +68,52 @@ class LocalizationSystem:
             Cellule((8, 8), [-30, -20, -60, -40]),
         ]
 
+    def generate_heatmap(self, tm_rssi, estimated_position):
+        """ 
+        Generates and displays a continuous heat map of RSSI differences
+        by interpolating the discrete reference points.
+        """
+        # Extract reference positions and compute their RSSI differences
+        x_coords = np.array([cell.position[0] for cell in self.grid])
+        y_coords = np.array([cell.position[1] for cell in self.grid])
+        differences = np.array([RSSIComparator.rssi_difference(cell.rssi, tm_rssi) 
+                                for cell in self.grid])
+
+        xi = np.linspace(x_coords.min(), x_coords.max(), 50)
+        yi = np.linspace(y_coords.min(), y_coords.max(), 50)
+        xi, yi = np.meshgrid(xi, yi)
+
+        zi = griddata((x_coords, y_coords), differences, (xi, yi), method='cubic')
+
+        plt.figure(figsize=(8, 6))
+        
+        # Plot the interpolated heat map
+        contour = plt.contourf(xi, yi, zi, levels=50, cmap='RdYlGn_r')
+        plt.colorbar(contour, label='RSSI Difference (Interpolated)')
+
+        plt.scatter(x_coords, y_coords, c='black', edgecolors='white', s=100, label='Reference Points')
+
+        for x, y, diff in zip(x_coords, y_coords, differences):
+            plt.text(x + 0.1, y + 0.1, f"{diff:.1f}", fontsize=9, color='black')
+
+        # Mark the estimated position with a blue "X"
+        plt.scatter(estimated_position[0], estimated_position[1],
+                    color='blue', marker='x', s=200, label='Estimated Position')
+
+        plt.title('Heat Map of RSSI Differences (Interpolated)')
+        plt.xlabel('X coordinate')
+        plt.ylabel('Y coordinate')
+        plt.grid(True)
+        plt.legend()
+        plt.show()
+
     def run_localization(self, tm_rssi):
-        """ Runs the fingerprint localization algorithm """
+        """ Runs the fingerprint localization algorithm and displays heat map """
         k_nearest = self.localizer.find_k_nearest(tm_rssi)
         weights = self.localizer.compute_weights(k_nearest)
         estimated_x, estimated_y = self.localizer.estimate_position(k_nearest, weights)
         print(f"Estimated Position (RSSI Weighted): ({estimated_x:.2f}, {estimated_y:.2f})")
+        self.generate_heatmap(tm_rssi, (estimated_x, estimated_y))
 
 
 if __name__ == "__main__":
