@@ -3,6 +3,7 @@ import networkx as nx
 import matplotlib.pyplot as plt
 from tabulate import tabulate
 
+
 class Node:
     """ Represents a page (node) in the graph """
     def __init__(self, id_num):
@@ -19,10 +20,10 @@ class Node:
         """ Increments the count of moves made from this node """
         self._total_nb_moves += 1
 
+
 class Graph:
     """ Represents a Markov Model-based transition graph for web navigation """
-    def __init__(self, nb_nodes):
-        self.nb_nodes = nb_nodes  # Number of sites chosen by the user
+    def __init__(self, nb_nodes=5):
         self._nodes = [Node(i) for i in range(nb_nodes)]
         self._edges = [[0] * nb_nodes for _ in range(nb_nodes)]
         self._current_node_id = 0  # Start at page 0
@@ -30,7 +31,7 @@ class Graph:
 
     def move(self, next_node_id):
         """ Moves from the current node to the specified next node """
-        if 0 <= next_node_id < self.nb_nodes:
+        if 0 <= next_node_id < 5:  # Ensuring only pages 0-4
             self._nodes[self._current_node_id].add_move()
             self._edges[self._current_node_id][next_node_id] += 1
             self._previous_node_id = self._current_node_id  # Store current as previous before moving
@@ -49,7 +50,7 @@ class Graph:
 
     def predict_next_move(self):
         """ Predicts the most probable next move based on past transitions (row-based analysis) """
-        stats = [self.node_stats(self._current_node_id, j)[1] for j in range(self.nb_nodes)]
+        stats = [self.node_stats(self._current_node_id, j)[1] for j in range(5)]
         if all(s == 0 for s in stats):  # No transitions recorded
             return None  # No valid prediction
         return stats.index(max(stats))
@@ -57,7 +58,7 @@ class Graph:
     def predict_previous_move(self):
         """ Predicts the most probable previous move based on who linked to the current page (column-based analysis) """
         stats = []
-        for i in range(self.nb_nodes):
+        for i in range(5):
             total_moves_from_i = self._nodes[i].get_nb_moves()
             if total_moves_from_i == 0:
                 stats.append(0)
@@ -76,8 +77,8 @@ class Graph:
         edge_labels = {}  # Stores transition percentages
         colors = {}  # Stores different colors for bidirectional edges
 
-        for i in range(self.nb_nodes):
-            for j in range(self.nb_nodes):
+        for i in range(5):
+            for j in range(5):
                 moves, percentage = self.node_stats(i, j)
                 if moves > 0:
                     G.add_edge(i, j, weight=percentage)
@@ -114,12 +115,12 @@ class Graph:
 
     def __str__(self):
         """ Returns a formatted table of transition counts with move counts and percentages, plus total visits """
-        headers = ["From\\To"] + [f"Page {i}" for i in range(self.nb_nodes)] + ["Total Visits"]
+        headers = ["From\\To"] + [f"Page {i}" for i in range(5)] + ["Total Visits"]
         table = []
 
-        for i in range(self.nb_nodes):
+        for i in range(5):
             row = [f"Page {i}"]
-            for j in range(self.nb_nodes):
+            for j in range(5):
                 moves, percentage = self.node_stats(i, j)
                 row.append(f"{moves} m, {percentage:.2f}%")
             row.append(f"{self._nodes[i].get_nb_moves()} visits")
@@ -127,8 +128,8 @@ class Graph:
 
         # Add total visits row at the end
         total_visits_row = ["Total Visits"]
-        for j in range(self.nb_nodes):
-            total_visits_col = sum(self._edges[i][j] for i in range(self.nb_nodes))
+        for j in range(5):
+            total_visits_col = sum(self._edges[i][j] for i in range(5))
             total_visits_row.append(f"{total_visits_col} moves")
         total_visits_row.append(f"{sum(node.get_nb_moves() for node in self._nodes)} visits")
 
@@ -136,59 +137,52 @@ class Graph:
 
         return tabulate(table, headers=headers, tablefmt="grid")
 
+
 def interactive_mode(graph):
     """ Allows user to enter moves dynamically. """
-    print(f"Interactive Mode: Enter node numbers (0 to {graph.nb_nodes - 1}) to move.")
-    print("Enter a number equal to the number of nodes to generate the graph visualization.")
+    print("Interactive Mode: Enter node numbers (0-4) to move.")
+    print("Enter 5 to generate the graph visualization.")
     print("Enter -1 to exit.\n")
     while True:
         try:
             next_move = int(input("Enter next move: "))
             if next_move == -1:
                 break
-            elif next_move == graph.nb_nodes:
+            elif next_move == 5:
                 graph.draw_graph()
-            elif 0 <= next_move < graph.nb_nodes:
+            elif 0 <= next_move <= 4:
                 graph.move(next_move)
                 print(graph)
                 print(f"Current Node: {graph._current_node_id}")
-                prev_node = graph._previous_node_id if graph._previous_node_id is not None else 'None'
-                print(f"Original Previous Node: {prev_node}")
+                print(f"Original Previous Node: {graph._previous_node_id if graph._previous_node_id is not None else 'None'}")
                 next_prediction = graph.predict_next_move()
                 prev_prediction = graph.predict_previous_move()
                 print(f"Predicted Next Page: {next_prediction if next_prediction is not None else 'Unknown'}")
                 print(f"Predicted Previous Page: {prev_prediction if prev_prediction is not None else 'Unknown'}\n")
             else:
-                print(f"Invalid move! Please enter a number between 0 and {graph.nb_nodes} (-1 to exit).")
+                print("Invalid move! Please enter a number between 0 and 5 (-1 to exit).")
         except ValueError:
             print("Invalid input! Please enter a valid integer.")
+
 
 def random_mode(graph, moves=10):
     """ Simulates random user navigation for testing """
     for _ in range(moves):
-        next_move = random.randint(0, graph.nb_nodes - 1)
-        graph.move(next_move)
+        graph.move(random.randint(0, 4))
         print(graph)
         print(f"Current Node: {graph._current_node_id}")
-        prev_node = graph._previous_node_id if graph._previous_node_id is not None else 'None'
-        print(f"Original Previous Node: {prev_node}")
+        print(f"Original Previous Node: {graph._previous_node_id if graph._previous_node_id is not None else 'None'}")
         next_prediction = graph.predict_next_move()
         prev_prediction = graph.predict_previous_move()
         print(f"Predicted Next Page: {next_prediction if next_prediction is not None else 'Unknown'}")
         print(f"Predicted Previous Page: {prev_prediction if prev_prediction is not None else 'Unknown'}\n")
 
+
 if __name__ == "__main__":
-    try:
-        nb_nodes = int(input("Enter the number of sites (nodes) for the graph: "))
-        if nb_nodes < 1:
-            print("The number of nodes must be at least 1. Exiting.")
-        else:
-            graph = Graph(nb_nodes)
-            print("Select Testing Mode:\n1. Interactive Mode\n2. Random Mode")
-            mode = input("Enter 1 or 2: ")
-            if mode == "1":
-                interactive_mode(graph)
-            else:
-                random_mode(graph, moves=10)
-    except ValueError:
-        print("Invalid input! Please enter a valid integer for the number of nodes.")
+    graph = Graph(5)
+    print("Select Testing Mode:\n1. Interactive Mode\n2. Random Mode")
+    mode = input("Enter 1 or 2: ")
+    if mode == "1":
+        interactive_mode(graph)
+    else:
+        random_mode(graph, moves=10)
